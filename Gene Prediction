@@ -1,0 +1,46 @@
+file_path = input("Enter the path to the FASTA file: ")
+start_codon = "ATG"
+stop_codons = ["TAA", "TAG", "TGA"]
+
+start_found = False
+sequence = ""
+output_sequences = []
+
+with open(file_path, "r") as file:
+    for line in file:
+        if line.startswith(">"):
+            if start_found:
+                sequence += "\n" + line.strip()
+            continue
+        else:
+            if not start_found:
+                start_index = line.find(start_codon)
+                if start_index != -1:
+                    start_found = True
+                    sequence += line[start_index:]
+            else:
+                sequence += line.strip()
+                stop_index = -1
+                for stop_codon in stop_codons:
+                    stop_index = sequence.find(stop_codon)
+                    if stop_index != -1:
+                        break
+
+                if stop_index != -1:
+                    coding_sequence = sequence[:stop_index + 3]
+                    length = len(coding_sequence)
+                    if 100 <= length <= 450:
+                        output_sequences.append(coding_sequence)
+                    start_found = False
+                    sequence = ""
+
+if sequence:
+    output_sequences.append(sequence)
+
+output_file_path = "output.fasta"
+with open(output_file_path, "w") as output_file:
+    for i, seq in enumerate(output_sequences, start=1):
+        output_file.write(f">Sequence_{i}\n")
+        output_file.write(seq + "\n")
+
+print(f"Results saved to {output_file_path}")
