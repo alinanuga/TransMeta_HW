@@ -1,0 +1,81 @@
+1)	Я скачала полный геном референса
+Wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_genomic.fna.gz
+GCF_000005845.2_ASM584v2_genomic.fna.gz
+2)	Далее я скачала аннотацию на референс
+wget https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_genomic.gff.gz
+GCF_000005845.2_ASM584v2_genomic.gff.gz
+3)	wget https://figshare.com/ndownloader/files/23769689 скачиваю прямой рид
+4)	И переименовала его amp_res_1.fastq
+5)	wget https://figshare.com/ndownloader/files/23769692 скачала обратный рид
+6)	И переименовала его amp_res_2.fastq.gz
+7)	zcat команда чтобы посмотреть зиповский файл
+8)	wc -l чтобы посмотреть количество ридов (поделить нужно на 4 результа)
+9)	sudo apt-get install fastqc
+10)	fastqc -h (чтобы посмотреть работу fastqc)
+11)	fastqc -o . /pathtofile1/file1.fastq  /pathtofile2/file2.fastq (написала полный путь к файлам)
+12)	(обрезка последовательности) 
+ТrimmomaticPE -phred33 /home/alina_nuga/first_project/amp_res_1.fastq.gz /home/alina_nuga/first_project/amp_res_2.fastq.gz /home/alina_nuga/first_project/T_1P.fq /home/alina_nuga/first_project/T_1U.fq /home/alina_nuga/first_project/T_2P.fq /home/alina_nuga/first_project/T_2U.fq LEADING:20 TRAILING:20 SLIDINGWINDOW:10:20 MINLEN:20
+<input_forward.fastq>: /home/alina_nuga/first_project/amp_res_1.fastq.gz
+<input_reverse.fastq>:  /home/alina_nuga/first_project/amp_res_2.fastq.gz
+<output_forward_paired.fastq>: /home/alina_nuga/first_project/T_1P.fq
+<output_forward_unpaired.fastq>: /home/alina_nuga/first_project/T_1U.fq 
+<output_reverse_paired.fastq>: /home/alina_nuga/first_project/T_2P.fq
+<output_reverse_unpaired.fastq>: /home/alina_nuga/first_project/T_2U.fq
+13)	Ws -l (количество ридов после обрезки)
+1785036 T_2P.fq
+1785036 T_1P.fq
+14)	(проверка на качество обрезанных ридов) 
+fastqc -o . /home/alina_nuga/first_project/T_1P.fq /home/alina_nuga/first_project/T_2P.fq
+15)	conda install -c bioconda bwa (установка bwa, программа для выравнивания)
+16)	(индексирование референса)
+bwa index GCF_000005845.2_ASM584v2_genomic.fna.gz
+GCF_000005845.2_ASM584v2_genomic.fna.gz.amb
+GCF_000005845.2_ASM584v2_genomic.fna.gz.ann  
+GCF_000005845.2_ASM584v2_genomic.fna.gz.bwt  
+GCF_000005845.2_ASM584v2_genomic.fna.gz.pac  
+GCF_000005845.2_ASM584v2_genomic.fna.gz.sa   
+17)	(выровняла на референс прямой и обратный рид) 
+bwa mem GCF_000005845.2_ASM584v2_genomic.fna.gz T_1P.fq T_2P.fq > alignment.sam
+https://samtools.github.io/hts-specs/SAMv1.pdf 
+18)	alignment.sam получила
+19)	(сжатие sam файла в bam) 
+samtools view -S -b alignment.sam > alignment.bam
+20)	(статистика того что получила в результате выравниывания)
+samtools flagstat alignment.bam
+21)	Сортировка bam-файла по координате последовательности на референсе:
+samtools sort alignment.bam -o alignment_sorted.bam 
+22)	Получила файл alignment_sorted.bam
+23)	Индексирование bam-файла для ускорения поиска:
+samtools index alignment_sorted.bam
+24)	Получила файл alignment_sorted.bam.bai
+25)	(распаковала zip файл) 
+gunzip GCF_000005845.2_ASM584v2_genomic.fna.gz
+26)	(индексировала референс для IGV)
+samtools faidx GCF_000005845.2_ASM584v2_genomic.fna
+27)	(создание промежуточного типа файла, mpileup, поскольку он проходит через каждую позицию и "складывает" риды в кучу, оценивая количество оснований, совпадающих или не совпадающих с референсом)
+samtools mpileup -f GCF_000005845.2_ASM584v2_genomic.fna alignment_sorted.bam.bai >  my.mpileup
+28)	Для вызова реальных вариантов скачала VarScan и проверила его
+java -jar /home/alina_nuga/VarScan.v2.4.6.jar mpileup2snp -h
+29)	(филтрацич наших данных через команду для поиска SNP)
+java -jar /home/alina_nuga/VarScan.v2.4.6.jar mpileup2snp my.mpileup --min-var-freq 0.5 --variants --output-vcf 1 > VarScan_results.vcf
+30)	Создала среду и установила snpeff для аннотации snp
+conda create -n snpeff
+conda activate snpeff
+conda install -c bioconda snpeff
+31)	Установка последовательности и аннотации нашего эталона для создания собственной базы данных. Самый простой способ - использовать формат Genbank, содержащий и аннотацию, и последовательность:
+https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_genomic.gbff.gz
+32)	(создание базы данных)
+nano snpEff.config: k12.genome : ecoli_K12
+33)	(создала папку для базы данных)
+mkdir -p data/k12
+34)	(название файла с референсом и аннотацией)
+GCF_000005845.2_ASM584v2_genomic.gbff.gz
+35)	(распаковала файл)
+gunzip GCF_000005845.2_ASM584v2_genomic.gbff.gz
+put on: GCF_000005845.2_ASM584v2_genomic.gbff
+36)	(перенесла референс и аннотацию)
+mv GCF_000005845.2_ASM584v2_genomic.gbff data/k12/genes.gbk
+37)	Создала базу данных
+snpEff build -genbank -v k12
+38)	Аннотация
+snpEff ann k12 VarScan_results.vcf > VarScan_results_annotated.vcf
